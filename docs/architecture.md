@@ -63,6 +63,7 @@ graph LR
 
     %% Flow 2: Miner Shares Submission and Processing
     Miners -- "Stratum" --> StratumGateway
+    StratumGateway -- "Vardiff/Session State" --> Redis
     StratumGateway -- "Publishes Submissions" --> Kafka
     Kafka -- "Consumes Submissions" --> ShareProcessor
     ShareProcessor -- "Validates w/ Cache" --> Redis
@@ -93,9 +94,9 @@ graph LR
 | Job Manager      | `jobmanager`         | Interfaces with Bitcoin Core. Creates mining jobs, publishes them to Kafka as Protobufs, and caches validation data in Redis. | `github.com/btcsuite/btcd/rpcclient`, `github.com/pebbe/zmq4`, `segmentio/kafka-go`, `redis/go-redis`, `google.golang.org/protobuf` | Low-latency response to ZMQ notifications is critical. Ensure non-blocking operations.         |
 | Share Processor  | `shareproc`          | The core validation engine. Consumes raw Protobuf shares, validates them statefully, and publishes results. Reconstructs and publishes solved blocks. | `goka`, `github.com/btcsuite/btcd/btcutil`, `google.golang.org/protobuf`               | In-memory state management for job IDs is crucial to avoid DB lookups. Logic must be heavily optimized. |
 | Block Submitter  | `blocksubmit`        | A minimal service. Consumes solved block Protobuf messages and immediately submits the block to Bitcoin Core via RPC. | `github.com/btcsuite/btcd/rpcclient`, `segmentio/kafka-go`, `google.golang.org/protobuf` | Zero unnecessary logic. This service's entire lifecycle is optimized for the lowest possible submission latency. |
-| Statistics Service | `statsd`           | A data pipeline service. Consumes share result topics and writes aggregated metrics and raw share data into InfluxDB. | `segmentio/kafka-go`, `github.com/influxdata/influxdb-client-go/v2`, `google.golang.org/protobuf` | Batch writes to InfluxDB. Asynchronous processing to keep up with Kafka consumer group lag.    |
+| Statistics Service | `statsd`           | A data pipeline service. Consumes share result topics and writes aggregated metrics and raw share data into InfluxDB. | `segmentio/kafka-go`, `github.com/InfluxCommunity/influxdb3-go`, `google.golang.org/protobuf` | Batch writes to InfluxDB. Asynchronous processing to keep up with Kafka consumer group lag.    |
 | Payout Service   | `payoutd`           | Handles the financial ledger. Consumes valid shares to calculate rewards. Manages balances and processes payouts against PostgreSQL. | `segmentio/kafka-go`, `github.com/jackc/pgx/v5`, `google.golang.org/protobuf`          | Use of explicit database transactions for all financial operations. Idempotent design.         |
-| API Service      | `apiserver`         | Provides the REST API (JSON). Queries the various data stores to serve miner and pool data. | `net/http` (or `chi`), `jackc/pgx`, `influxdb-client-go`, `redis/go-redis`             | Heavy caching. Efficient JSON serialization. This is the main service that translates internal data to external JSON. |
+| API Service      | `apiserver`         | Provides the REST API (JSON). Queries the various data stores to serve miner and pool data. | `chi`, `github.com/jackc/pgx/v5`, `github.com/InfluxCommunity/influxdb3-go`, `redis/go-redis`             | Heavy caching. Efficient JSON serialization. This is the main service that translates internal data to external JSON. |
 
 ## 4. Data Flow & Sequence Diagrams
 
@@ -122,7 +123,7 @@ The topic design reflects the separation of **Hot Path** and **Warm Path**. All 
 
 A polyglot persistence strategy will be employed, using the best tool for each specific data-handling job.
 
-### 5.1. PostgreSQL: The Transactional Ledger
+### 5.1. PostgreSQL 17: The Transactional Ledger
 
 **Role**: Single Source of Truth for all financial and configuration data that requires strong transactional consistency (ACID compliance).
 
@@ -135,7 +136,7 @@ A polyglot persistence strategy will be employed, using the best tool for each s
 
 **Justification**: The integrity of the pool's finances is paramount. PostgreSQL's robustness and support for complex, atomic transactions make it the only appropriate choice for this role.
 
-### 5.2. InfluxDB: The Time-Series Engine
+### 5.2. InfluxDB 3: The Time-Series Engine
 
 **Role**: The high-throughput engine for all time-stamped event data, optimized for massive write volumes and fast analytical range queries.
 
@@ -147,7 +148,7 @@ A polyglot persistence strategy will be employed, using the best tool for each s
 
 **Justification**: This offloads the immense write pressure of share submissions from PostgreSQL. It enables the `apiserver` to serve complex statistical queries (e.g., hashrate charts) without impacting the performance of the financial database. Built-in data lifecycle management is critical for managing storage costs.
 
-### 5.3. Redis: The High-Speed Operational Cache
+### 5.3. Redis 8: The High-Speed Operational Cache
 
 **Role**: The low-latency, shared "short-term memory" for the entire system, enabling fast lookups and state management across distributed services.
 
