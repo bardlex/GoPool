@@ -28,22 +28,15 @@ The system is composed of several focused microservices communicating via Kafka.
 ### 3.1. Architectural Diagram
 
 ```mermaid
-graph TD
+graph LR
+    %% External clients and dependencies are the starting point of the flow.
     subgraph "External"
         Miners["Mining Rigs"]
         BitcoinCore["Bitcoin Core (with ZMQ)"]
     end
 
-    subgraph "Infrastructure (Self-Hosted)"
-        Unsure
-        Kafka["Kafka Cluster (Protobuf Messages)"]
-        Postgres["PostgreSQL (Transactional DB)"]
-        InfluxDB["InfluxDB (Time-Series DB)"]
-        Redis["Redis (Cache & State)"]
-    end
-
-    subgraph "GoPool Services (Horizontally Scalable Go Binaries)"
-        TCP_LB["TCP Load Balancer"]
+    %% GoPool microservices are the core logic of the system.
+    subgraph "GoPool Services"
         StratumGateway[stratumd]
         JobManager[jobmanager]
         ShareProcessor[shareproc]
@@ -53,32 +46,43 @@ graph TD
         ApiSvc[apiserver]
     end
 
-    Miners -->|"Stratum (JSON-RPC)"| TCP_LB
-    TCP_LB --> StratumGateway
+    %% Infrastructure contains the messaging bus and data stores.
+    subgraph "Infrastructure"
+        Kafka["Kafka Cluster"]
+        Postgres["PostgreSQL (Ledger)"]
+        InfluxDB["InfluxDB (Time-Series)"]
+        Redis["Redis (Cache & State)"]
+    end
 
-    BitcoinCore -->|"ZMQ & RPC"| JobManager
-    JobManager -->|"Publishes Jobs (Proto)"| Kafka
-    Kafka -->|"Consumes Jobs (Proto)"| StratumGateway
-    StratumGateway -->|"Publishes Submissions (Proto)"| Kafka
 
-    Kafka -->|"Consumes Submissions (Proto)"| ShareProcessor
-    ShareProcessor -->|"Publishes Validated Shares (Proto)"| Kafka
-    ShareProcessor -->|"Publishes Solved Blocks (Proto)"| Kafka
+    %% Flow 1: Job Creation and Distribution to Miners
+    BitcoinCore -- "ZMQ/RPC" --> JobManager
+    JobManager -- "Publishes Jobs" --> Kafka
+    Kafka -- "Consumes Jobs" --> StratumGateway
+    JobManager -- "Caches Job Data" --> Redis
 
-    Kafka -->|"Consumes Solved Blocks (Proto)"| BlockSubmitter
-    BlockSubmitter -->|"submitblock RPC"| BitcoinCore
+    %% Flow 2: Miner Shares Submission and Processing
+    Miners -- "Stratum" --> StratumGateway
+    StratumGateway -- "Publishes Submissions" --> Kafka
+    Kafka -- "Consumes Submissions" --> ShareProcessor
+    ShareProcessor -- "Validates w/ Cache" --> Redis
 
-    JobManager -->|"Caches Job Data"| Redis
-    ShareProcessor -->|"Validates against"| Redis
+    %% Flow 3: WARM PATH - For Accounting and Statistics (High Throughput)
+    ShareProcessor -- "Publishes Valid Shares" --> Kafka
+    Kafka -- "Consumed by Stats" --> StatisticsSvc
+    StatisticsSvc -- "Write Metrics" --> InfluxDB
+    Kafka -- "Consumed by Payouts" --> PayoutSvc
+    PayoutSvc -- "Write to Ledger" --> Postgres
 
-    Kafka -->|"Consumed by"| PayoutSvc
-    Kafka -->|"Consumed by"| StatisticsSvc
+    %% Flow 4: HOT PATH - For Block Submission (Low Latency)
+    ShareProcessor -- "Publishes Solved Blocks" --> Kafka
+    Kafka -- "Consumed by Submitter" --> BlockSubmitter
+    BlockSubmitter -- "submitblock RPC" --> BitcoinCore
 
-    PayoutSvc -->|"Balances, Payouts"| Postgres
-    StatisticsSvc -->|"Share Stats, Hashrate"| InfluxDB
-    ApiSvc -->|"Reads Miner & Pool Stats"| InfluxDB
-    ApiSvc -->|"Reads Financials, Config"| Postgres
-    ApiSvc -->|"Reads Session State"| Redis
+    %% Flow 5: API Read-Only Access
+    ApiSvc -- "Reads Miner/Pool Stats" --> InfluxDB
+    ApiSvc -- "Reads Financials/Config" --> Postgres
+    ApiSvc -- "Reads Session State" --> Redis
 ```
 
 ### 3.2. Go Microservice Breakdown
