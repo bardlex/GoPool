@@ -29,21 +29,21 @@ The system is composed of several focused microservices communicating via Kafka.
 
 ```mermaid
 graph TD
-    subgraph External
-        Miners[Mining Rigs]
-        BitcoinCore[Bitcoin Core (with ZMQ)]
+    subgraph "External"
+        Miners["Mining Rigs"]
+        BitcoinCore["Bitcoin Core (with ZMQ)"]
     end
 
-    subgraph Infrastructure (Self-Hosted)
+    subgraph "Infrastructure (Self-Hosted)"
         Unsure
-        Kafka[Kafka Cluster (Protobuf Messages)]
-        Postgres[PostgreSQL (Transactional DB)]
-        InfluxDB[InfluxDB (Time-Series DB)]
-        Redis[Redis (Cache & State)]
+        Kafka["Kafka Cluster (Protobuf Messages)"]
+        Postgres["PostgreSQL (Transactional DB)"]
+        InfluxDB["InfluxDB (Time-Series DB)"]
+        Redis["Redis (Cache & State)"]
     end
 
-    subgraph GoPool Services (Horizontally Scalable Go Binaries)
-        TCP_LB[TCP Load Balancer]
+    subgraph "GoPool Services (Horizontally Scalable Go Binaries)"
+        TCP_LB["TCP Load Balancer"]
         StratumGateway[stratumd]
         JobManager[jobmanager]
         ShareProcessor[shareproc]
@@ -163,19 +163,7 @@ A polyglot persistence strategy will be employed, using the best tool for each s
 - **Memory Allocations**: The **Hot Path** (`stratumd` -> `shareproc`) must be aggressively optimized to minimize heap allocations. We will use `sync.Pool` to reuse objects like byte buffers and Protobuf message structs.
 - **Profiling**: We will use the standard library `pprof` tool extensively to profile CPU and memory usage and identify bottlenecks early and often. `go test -bench` will be used to benchmark critical functions.
 - **I/O**: We will use buffered I/O (`bufio`) in `stratumd` for efficient network reads and writes.
-
-**Logging**: All services will use the standard library's `log/slog` package for structured, high-performance logging. We will use `slog.NewJSONHandler` to produce machine-parsable logs.
-
-```go
-// Example of structured logging
-logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-logger.Info(
-    "share validated",
-    slog.String("status", "valid"),
-    slog.String("job_id", share.JobID),
-    slog.String("miner", share.MinerAddress),
-)
-```
+- **Logging**: All services will use the standard library's `log/slog` package for structured, high-performance logging. We will use `slog.NewJSONHandler` to produce machine-parsable logs.
 
 **Configuration**: Services will be configured via environment variables and command-line flags, following the 12-Factor App methodology. The `flag` standard library package is sufficient. We will avoid complex config files and libraries unless absolutely necessary.
 
