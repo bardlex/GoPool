@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package gomp.v1;
+
+option go_package = "github.com/bardlex/gomp/proto/gomp/v1";
+
+import "google/protobuf/timestamp.proto";
+import "proto/gomp/v1/share.proto";
+
+// MinerStats represents statistics for a specific miner
+message MinerStats {
+  string miner_address = 1;
+  string worker_name = 2;
+  double hashrate = 3;
+  int64 shares_submitted = 4;
+  int64 shares_accepted = 5;
+  int64 shares_rejected = 6;
+  double difficulty = 7;
+  google.protobuf.Timestamp last_share = 8;
+  google.protobuf.Timestamp connected_at = 9;
+  bool is_active = 10;
+}
+
+// PoolStats represents overall pool statistics
+message PoolStats {
+  double total_hashrate = 1;
+  int64 active_miners = 2;
+  int64 total_shares = 3;
+  int64 blocks_found = 4;
+  double pool_luck = 5;
+  double network_difficulty = 6;
+  int64 network_height = 7;
+  google.protobuf.Timestamp last_block = 8;
+  google.protobuf.Timestamp timestamp = 9;
+}
+
+// ShareMetric is used for time-series data
+message ShareMetric {
+  string miner_address = 1;
+  string worker_name = 2;
+  double difficulty = 3;
+  ShareStatus status = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  string job_id = 6;
+  int64 block_height = 7;
+}
+
+// HashrateMetric tracks hashrate over time
+message HashrateMetric {
+  string miner_address = 1;
+  string worker_name = 2;
+  double hashrate = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  int32 window_seconds = 5;
+}
+
+// ShareStatus is imported from share.proto
