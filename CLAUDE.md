@@ -1,10 +1,10 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to opencode when working with code in this repository.
 
 ## Project Overview
 
-GOMP (Go Mining Pool) is a high-performance Bitcoin mining pool implementation written in Go 1.24+. This is currently a documentation-only project in the planning/design phase - no Go source code has been implemented yet.
+GOMP (Go Mining Pool) is a high-performance Bitcoin mining pool implementation written in Go 1.24+.
 
 ## Architecture
 
@@ -65,6 +65,19 @@ This is a **performance-first** project with these non-negotiable requirements:
 - **Bitcoin Core Integration**: ZMQ notifications and RPC calls
 
 ## Code Standards
+
+### Modern Go Language Features
+
+- Use `any` instead of `interface{}` (Go 1.18+)
+- Use `context.Context` for cancellation and timeouts
+- Use `sync.WaitGroup` for goroutine synchronization
+- Use `sync.Once` for one-time initialization
+- Use `sync.Map` for concurrent maps when appropriate
+- Use generics for type-safe collections and utilities (Go 1.18+)
+- Use `errors.Join()` for combining multiple errors (Go 1.20+)
+- Use `slices` and `maps` packages for efficient operations (Go 1.21+)
+- Use range over integers for simple loops (Go 1.22+)
+- Use `b.Loop()` instead of `for i := 0; i < b.N; i++` in benchmarks (Go 1.23+)
 
 ### Structured Logging
 
@@ -177,8 +190,14 @@ make check
 
 ### Protobuf Generation
 ```bash
+# Install protobuf tools
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
 # Generate protobuf files (when proto files exist)
-protoc --go_out=. proto/**/*.proto
+protoc --go_out=. --go_opt=paths=source_relative proto/**/*.proto
+
+# Or use buf for modern protobuf management
+buf generate
 ```
 
 ## Documentation
