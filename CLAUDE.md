@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GoPool is a high-performance Bitcoin mining pool implementation written in Go 1.24+. This is currently a documentation-only project in the planning/design phase - no Go source code has been implemented yet.
+GOMP (Go Mining Pool) is a high-performance Bitcoin mining pool implementation written in Go 1.24+. This is currently a documentation-only project in the planning/design phase - no Go source code has been implemented yet.
 
 ## Architecture
 
@@ -122,9 +122,10 @@ func TestParseConfig(t *testing.T) {
 Use Conventional Commits format:
 
 ```text
-feat(stratifier): implement vardiff algorithm
-fix(connector): handle partial TCP writes
+feat(stratumd): implement vardiff algorithm
+fix(jobmanager): handle partial TCP writes
 test(config): add validation test cases
+docs: add stratum v1 protocol spec doc
 ```
 
 ## Development Patterns
@@ -141,7 +142,7 @@ test(config): add validation test cases
 make install-tools
 
 # Initialize Go modules (when first Go file is added)
-go mod init github.com/bardlex/gopool
+go mod init github.com/bardlex/gomp
 ```
 
 ### Building & Testing

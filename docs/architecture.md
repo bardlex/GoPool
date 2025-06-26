@@ -1,8 +1,4 @@
-Of course. Here is the fully updated version of the technical design document. It incorporates the new "Priority Lane" for solved blocks, includes all other recommended consistency fixes, and refines the language for clarity.
-
------
-
-# GoPool: Technical Design & Architecture
+# GOMP (Go Mining Pool): Technical Design & Architecture
 
 **Target Go Version**: 1.24+
 
@@ -10,7 +6,7 @@ Of course. Here is the fully updated version of the technical design document. I
 
 ## 1\. Guiding Philosophy & Introduction
 
-This document specifies the technical architecture for GoPool, a new, from-scratch Bitcoin mining pool built in Go. This is not a re-architecture of an existing system, but a greenfield project designed to embody the core philosophies of the Go language: simplicity, concurrency, and performance.
+This document specifies the technical architecture for GOMP, a new, from-scratch Bitcoin mining pool built in Go. This is not a re-architecture of an existing system, but a greenfield project designed to embody the core philosophies of the Go language: simplicity, concurrency, and performance.
 
 The non-negotiable, primary directive for this project is performance. Every architectural decision, library choice, and implementation pattern must be justifiable from a performance-first perspective. The goal is to build a system that is not only massively scalable but also ruthlessly efficient in terms of latency, CPU usage, and memory allocation.
 
@@ -40,7 +36,7 @@ graph LR
         BitcoinCore["Bitcoin Core (with ZMQ)"]
     end
 
-    subgraph "GoPool Services"
+    subgraph "GOMP Services"
         StratumGateway[stratumd]
         JobManager[jobmanager]
         ShareProcessor[shareproc]
@@ -176,7 +172,7 @@ Given that `stratumd` is the most I/O-bound component, the following advanced st
 We will adopt the "Standard Go Project Layout." This provides a well-understood structure for separating concerns.
 
 ```
-/gopool/
+/gomp/
 ├── /cmd/
 │   ├── /apiserver/
 │   ├── /blocksubmit/
@@ -195,7 +191,7 @@ We will adopt the "Standard Go Project Layout." This provides a well-understood 
 ├── /pkg/
 │   └── /log/
 ├── /proto/
-│   └── /gopool/v1/
+│   └── /gomp/v1/
 │       ├── share.proto
 │       └── job.proto
 ├── /api/
