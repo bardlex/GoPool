@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package gomp.v1;
+
+option go_package = "github.com/bardlex/gomp/proto/gomp/v1";
+
+import "google/protobuf/timestamp.proto";
+
+// Share represents a mining share submission
+message Share {
+  string id = 1;
+  string job_id = 2;
+  string miner_address = 3;
+  string worker_name = 4;
+  string extra_nonce2 = 5;
+  string ntime = 6;
+  string nonce = 7;
+  double difficulty = 8;
+  double network_difficulty = 9;
+  int64 block_height = 10;
+  google.protobuf.Timestamp submitted_at = 11;
+  ShareStatus status = 12;
+  string error_message = 13;
+}
+
+// ShareStatus represents the validation status of a share
+enum ShareStatus {
+  SHARE_STATUS_UNSPECIFIED = 0;
+  SHARE_STATUS_PENDING = 1;
+  SHARE_STATUS_VALID = 2;
+  SHARE_STATUS_INVALID = 3;
+  SHARE_STATUS_STALE = 4;
+  SHARE_STATUS_DUPLICATE = 5;
+  SHARE_STATUS_BLOCK_CANDIDATE = 6;
+}
+
+// ShareSubmission is the message sent from stratumd to shareproc
+message ShareSubmission {
+  Share share = 1;
+  string session_id = 2;
+  string remote_addr = 3;
+}
+
+// ShareResult is the response from shareproc back to stratumd
+message ShareResult {
+  string share_id = 1;
+  ShareStatus status = 2;
+  string error_message = 3;
+  bool is_block_candidate = 4;
+}
+
+// BlockCandidate represents a share that meets block difficulty
+message BlockCandidate {
+  Share share = 1;
+  string block_hex = 2;
+  string block_hash = 3;
+  double target_difficulty = 4;
+}
+
+// SolvedBlock represents a confirmed solved block
+message SolvedBlock {
+  string block_hash = 1;
+  string block_hex = 2;
+  int64 block_height = 3;
+  double network_difficulty = 4;
+  string coinbase_tx = 5;
+  int64 block_reward = 6;
+  int64 transaction_fees = 7;
+  google.protobuf.Timestamp found_at = 8;
+  string found_by_miner = 9;
+  string found_by_worker = 10;
+}

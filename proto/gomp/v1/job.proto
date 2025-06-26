@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package gomp.v1;
+
+option go_package = "github.com/bardlex/gomp/proto/gomp/v1";
+
+import "google/protobuf/timestamp.proto";
+
+// MiningJob represents a work template for miners
+message MiningJob {
+  string job_id = 1;
+  string prev_hash = 2;
+  string coinb1 = 3;
+  string coinb2 = 4;
+  repeated string merkle_branch = 5;
+  string version = 6;
+  string nbits = 7;
+  string ntime = 8;
+  bool clean_jobs = 9;
+  int64 block_height = 10;
+  double network_difficulty = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp expires_at = 13;
+}
+
+// JobTemplate is used internally by jobmanager
+message JobTemplate {
+  string template_id = 1;
+  string prev_hash = 2;
+  string coinbase_tx = 3;
+  repeated string transactions = 4;
+  string version = 5;
+  string nbits = 6;
+  string ntime = 7;
+  int64 block_height = 8;
+  double network_difficulty = 9;
+  int64 block_reward = 10;
+  int64 total_fees = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+
+// NewBlockNotification is sent when a new block is found on the network
+message NewBlockNotification {
+  string block_hash = 1;
+  int64 block_height = 2;
+  double network_difficulty = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+// DifficultyAdjustment is sent when network difficulty changes
+message DifficultyAdjustment {
+  double old_difficulty = 1;
+  double new_difficulty = 2;
+  int64 block_height = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
