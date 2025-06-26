@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for transactional data
+  postgres:
+    image: postgres:16-alpine
+    container_name: gomp-postgres
+    environment:
+      POSTGRES_DB: gomp
+      POSTGRES_USER: gomp
+      POSTGRES_PASSWORD: gomp_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gomp -d gomp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - gomp-network
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: gomp-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - gomp-network
+
+  # InfluxDB for time-series metrics
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: gomp-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: gomp
+      DOCKER_INFLUXDB_INIT_PASSWORD: gomp_password
+      DOCKER_INFLUXDB_INIT_ORG: gomp
+      DOCKER_INFLUXDB_INIT_BUCKET: mining_metrics
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: gomp_admin_token_change_in_production
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - gomp-network
+
+  # Grafana for metrics visualization (optional)
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: gomp-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+    networks:
+      - gomp-network
+
+  # pgAdmin for PostgreSQL management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: gomp-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gomp.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - gomp-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  influxdb_data:
+    driver: local
+  influxdb_config:
+    driver: local
+  grafana_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  gomp-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

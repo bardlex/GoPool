@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  # GOMP Services
+  stratumd:
+    build:
+      context: ..
+      dockerfile: deployments/docker/Dockerfile
+    command: ["./bin/stratumd"]
+    ports:
+      - "3333:3333"
+    environment:
+      - SERVICE_NAME=stratumd
+      - LISTEN_PORT=3333
+      - BITCOIN_RPC_HOST=bitcoind
+      - KAFKA_BROKERS=kafka:9092
+      - POSTGRES_URL=postgres://gomp:gomp@postgres:5432/gomp?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - INFLUX_URL=http://influxdb:8086
+    depends_on:
+      - bitcoind
+      - kafka
+      - postgres
+      - redis
+      - influxdb
+    restart: unless-stopped
+
+  jobmanager:
+    build:
+      context: ..
+      dockerfile: deployments/docker/Dockerfile
+    command: ["./bin/jobmanager"]
+    environment:
+      - SERVICE_NAME=jobmanager
+      - BITCOIN_RPC_HOST=bitcoind
+      - BITCOIN_RPC_USER=gomp
+      - BITCOIN_RPC_PASSWORD=gomp
+      - KAFKA_BROKERS=kafka:9092
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - bitcoind
+      - kafka
+      - redis
+    restart: unless-stopped
+
+  shareproc:
+    build:
+      context: ..
+      dockerfile: deployments/docker/Dockerfile
+    command: ["./bin/shareproc"]
+    environment:
+      - SERVICE_NAME=shareproc
+      - KAFKA_BROKERS=kafka:9092
+      - POSTGRES_URL=postgres://gomp:gomp@postgres:5432/gomp?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - WORKER_POOL_SIZE=50
+    depends_on:
+      - kafka
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  blocksubmit:
+    build:
+      context: ..
+      dockerfile: deployments/docker/Dockerfile
+    command: ["./bin/blocksubmit"]
+    environment:
+      - SERVICE_NAME=blocksubmit
+      - BITCOIN_RPC_HOST=bitcoind
+      - BITCOIN_RPC_USER=gomp
+      - BITCOIN_RPC_PASSWORD=gomp
+      - KAFKA_BROKERS=kafka:9092
+    depends_on:
+      - bitcoind
+      - kafka
+    restart: unless-stopped
+
+  # Infrastructure Services
+  bitcoind:
+    image: bitcoin/bitcoin:27.0
+    command: |
+      bitcoind
+      -regtest
+      -server
+      -rpcuser=gomp
+      -rpcpassword=gomp
+      -rpcallowip=0.0.0.0/0
+      -rpcbind=0.0.0.0
+      -zmqpubhashblock=tcp://0.0.0.0:28332
+      -zmqpubrawtx=tcp://0.0.0.0:28333
+    ports:
+      - "18443:18443"
+      - "28332:28332"
+    volumes:
+      - bitcoin_data:/home/bitcoin/.bitcoin
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=gomp
+      - POSTGRES_USER=gomp
+      - POSTGRES_PASSWORD=gomp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=gomp
+      - DOCKER_INFLUXDB_INIT_PASSWORD=gomp123456
+      - DOCKER_INFLUXDB_INIT_ORG=gomp
+      - DOCKER_INFLUXDB_INIT_BUCKET=mining
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    restart: unless-stopped
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    restart: unless-stopped
+
+volumes:
+  bitcoin_data:
+  postgres_data:
+  redis_data:
+  influxdb_data:
+  zookeeper_data:
+  kafka_data:
